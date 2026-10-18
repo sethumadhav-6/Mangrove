@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mangrove Live ID · Canopy GS</title>
+  <meta name="description" content="Live identification of Kerala mangroves, associate flora, birds and nests from a drone video feed, with automatic snapshots.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3c6 4 9 9 9 14a9 9 0 0 1-18 0c0-5 3-10 9-14z' fill='%235be08f'/%3E%3Cpath d='M16 10v19M16 18l-5 5M16 22l5 4' stroke='%230b1512' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c6 4 9 9 9 14a9 9 0 0 1-18 0c0-5 3-10 9-14z" fill="var(--accent)"/><path d="M16 10v19M16 18l-5 5M16 22l5 4" stroke="var(--bg)" stroke-width="2" fill="none"/></svg>
+    <div><b>Mangrove Live ID</b><span>Canopy Geospatial Solutions · Kerala</span></div>
+  </div>
+  <div class="chips">
+    <span class="chip" id="st-det" title="Bird / object detector"><i></i><em>Detector</em> <span>loading…</span></span>
+    <span class="chip" id="st-sp" title="Species classifier"><i></i><em>Species</em> <span>loading…</span></span>
+    <span class="chip" id="st-perf"><em>Speed</em> <span>–</span></span>
+    <span class="chip" id="st-gps"><i></i><em>GPS</em> <span>off</span></span>
+  </div>
+  <div class="actions">
+    <button class="btn ghost" id="btn-gallery">Snaps <b id="snap-count">0</b></button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage">
+    <div class="viewport" id="viewport">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="flash" id="flash"></div>
+      <div class="toast" id="toast"></div>
+
+      <div class="empty" id="empty">
+        <h1>Connect a drone feed</h1>
+        <p>All identification runs inside this browser. The video never leaves this device.</p>
+        <div class="sources">
+          <button class="src" data-src="camera">
+            <b>Capture card / USB</b><span>DJI RC Pro, RC Plus or Smart Controller HDMI-out through a USB capture dongle. Most reliable.</span>
+          </button>
+          <button class="src" data-src="screen">
+            <b>Screen or window</b><span>Mirror of the controller screen or the DJI app window on this computer.</span>
+          </button>
+          <button class="src" data-src="whep">
+            <b>Relay · WebRTC</b><span>Drone RTMP push to a MediaMTX relay, played back here with ~0.5 s delay.</span>
+          </button>
+          <button class="src" data-src="hls">
+            <b>Relay · HLS</b><span>An .m3u8 link from a relay. Higher delay; works through most networks.</span>
+          </button>
+          <button class="src" data-src="file">
+            <b>Recorded video</b><span>Test with a saved flight video or review footage after landing.</span>
+          </button>
+        </div>
+        <form class="src-form" id="src-form" hidden>
+          <label id="f-cam" hidden>Video device <select id="cam-select"></select></label>
+          <label id="f-url" hidden>Stream URL <input id="src-url" type="url" placeholder="http://localhost:8889/drone/whep"></label>
+          <label id="f-file" hidden>Video file <input id="src-file" type="file" accept="video/*"></label>
+          <div class="row"><button type="submit" class="btn primary">Start feed</button><button type="button" class="btn ghost" id="src-cancel">Cancel</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="stage-bar">
+      <span class="src-name" id="src-name">No feed</span>
+      <label class="toggle"><input type="checkbox" id="ai-on" checked><span></span>AI</label>
+      <label class="toggle"><input type="checkbox" id="snap-on" checked><span></span>Auto-snap</label>
+      <button class="btn" id="btn-snap" title="Manual snap (S)">Snap now</button>
+      <button class="btn ghost" id="btn-stop">Stop feed</button>
+    </div>
+    <div class="strip" id="strip" aria-label="Latest snaps"></div>
+  </section>
+
+  <aside class="side">
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="live">Live</button>
+      <button role="tab" data-tab="survey">Survey</button>
+      <button role="tab" data-tab="settings">Settings</button>
+    </nav>
+
+    <div class="pane" id="tab-live">
+      <h2>In view</h2>
+      <ul class="inview" id="inview"><li class="muted">Start a feed to see identifications.</li></ul>
+      <div class="card" id="card" hidden></div>
+    </div>
+
+    <div class="pane" id="tab-survey" hidden>
+      <label>Survey name <input id="sv-name" placeholder="e.g. Puthuvype transect 3"></label>
+      <label>Site <select id="sv-site"></select></label>
+      <label>Flight altitude (m AGL) <input id="sv-alt" type="number" min="0" step="1" placeholder="30"></label>
+      <label class="toggle"><input type="checkbox" id="sv-gps"><span></span>Tag snaps with this device's GPS</label>
+      <p class="hint">This is the ground-station position, usually within a few hundred metres of the drone. For exact drone coordinates use <code>tools/geotag_from_srt.py</code> with the flight's .SRT file.</p>
+      <h2>Snaps this survey</h2>
+      <ul class="tally" id="tally"><li class="muted">None yet.</li></ul>
+    </div>
+
+    <div class="pane" id="tab-settings" hidden>
+      <h2>Auto-snap thresholds</h2>
+      <label class="range">Mangrove / flora confidence <input type="range" id="s-tile" min="0.2" max="0.95" step="0.05"><output></output></label>
+      <label class="range">Nest / colony confidence <input type="range" id="s-nest" min="0.2" max="0.95" step="0.05"><output></output></label>
+      <label class="range">Bird detection confidence <input type="range" id="s-bird" min="0.15" max="0.9" step="0.05"><output></output></label>
+      <label class="range">Bird species confidence <input type="range" id="s-birdsp" min="0.15" max="0.9" step="0.05"><output></output></label>
+      <label class="range">Re-snap same label after (s) <input type="range" id="s-cool" min="2" max="120" step="1"><output></output></label>
+      <h2>What to look for</h2>
+      <div class="checks">
+        <label><input type="checkbox" data-cat="mangrove"> True mangroves</label>
+        <label><input type="checkbox" data-cat="associate"> Associate flora</label>
+        <label><input type="checkbox" data-cat="bird"> Birds</label>
+        <label><input type="checkbox" data-cat="nest"> Nests &amp; heronries</label>
+      </div>
+      <h2>Performance</h2>
+      <label class="range">Canopy grid rows <input type="range" id="s-rows" min="1" max="5" step="1"><output></output></label>
+      <label class="range">Species check every (ms) <input type="range" id="s-int" min="500" max="8000" step="250"><output></output></label>
+      <label class="toggle"><input type="checkbox" id="s-gpu"><span></span>Use GPU (WebGPU) — reload to apply</label>
+      <label class="toggle"><input type="checkbox" id="s-bg"><span></span>Show background tiles (water, mud…)</label>
+      <label class="toggle"><input type="checkbox" id="s-sound"><span></span>Sound on snap</label>
+      <p class="hint">Zero-shot species labels are candidates. Verify snaps in the gallery and export them as a training set. A model trained on your own flights is what gives reliable species ID (see <code>training/README.md</code>).</p>
+    </div>
+  </aside>
+</main>
+
+<dialog id="gallery" class="dlg wide">
+  <header>
+    <h2>Snaps</h2>
+    <select id="g-cat"><option value="">All categories</option><option value="mangrove">True mangroves</option><option value="associate">Associate flora</option><option value="bird">Birds</option><option value="nest">Nests</option><option value="manual">Manual</option></select>
+    <label class="inline"><input type="checkbox" id="g-unv"> Unverified only</label>
+    <span class="grow"></span>
+    <label class="inline"><input type="checkbox" id="g-vonly"> Dataset: verified only</label>
+    <button class="btn primary" id="g-export">Export ZIP</button>
+    <button class="btn ghost danger" id="g-clear">Clear all</button>
+    <button class="btn ghost" data-close>Close</button>
+  </header>
+  <div class="grid" id="g-grid"></div>
+</dialog>
+
+<dialog id="detail" class="dlg">
+  <header><h2 id="d-title">Snap</h2><span class="grow"></span><button class="btn ghost" data-close>Close</button></header>
+  <div class="detail">
+    <img id="d-img" alt="">
+    <div class="meta">
+      <dl id="d-meta"></dl>
+      <label>Verified label <select id="d-label"></select></label>
+      <label>Notes <textarea id="d-notes" rows="3"></textarea></label>
+      <div class="row">
+        <button class="btn primary" id="d-save">Save</button>
+        <a class="btn ghost" id="d-dl" download>Download frame</a>
+        <button class="btn ghost danger" id="d-del">Delete</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

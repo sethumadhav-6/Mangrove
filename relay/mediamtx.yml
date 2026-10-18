@@ -1,0 +1,32 @@
+# MediaMTX relay for DJI live streaming  ->  browser (WebRTC / HLS)
+# Download MediaMTX (single binary, Windows/Linux/macOS): https://github.com/bluenviron/mediamtx/releases
+# Put this file next to the binary and run:   mediamtx mediamtx.yml
+#
+# In DJI Fly / DJI Pilot 2:  Live streaming -> RTMP ->  rtmp://<this-computer-LAN-IP>:1935/drone
+# In Mangrove Live ID:       Relay · WebRTC ->        http://localhost:8889/drone/whep
+#                            Relay · HLS    ->        http://localhost:8888/drone/index.m3u8
+#
+# Everything not listed here keeps MediaMTX defaults (CORS is already open to all origins by default).
+
+logLevel: info
+
+rtmp: yes
+rtmpAddress: :1935
+
+webrtc: yes
+webrtcAddress: :8889
+# If the browser runs on a different machine than the relay, list this machine's LAN IP so ICE works:
+# webrtcAdditionalHosts: [192.168.1.20]
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+rtsp: no
+srt: no
+
+paths:
+  drone:
+  all_others:

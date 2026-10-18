@@ -1,0 +1,22 @@
+{
+  "_comment": "Model configuration. Swap in your own trained ONNX models here without touching the code. See training/README.md.",
+  "libs": {
+    "ort": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+    "transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js",
+    "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+    "hls": "https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.mjs"
+  },
+  "detector": {
+    "url": "models/yolo11n.onnx",
+    "imgsz": 640,
+    "labels": "coco",
+    "keep": ["bird"]
+  },
+  "clipModel": "Xenova/clip-vit-base-patch16",
+  "clipDtypeGPU": "fp16",
+  "tile": { "engine": "clip" },
+  "bird": { "engine": "clip" },
+
+  "_example_custom_tile": { "engine": "yolo-cls", "url": "models/kerala-mangrove-cls.onnx", "imgsz": 224, "labels": ["avicennia_officinalis", "rhizophora_mucronata", "..."] },
+  "_example_custom_detector": { "url": "models/kerala-birds-nests.onnx", "imgsz": 640, "labels": ["little_egret", "night_heron", "little_cormorant", "heronry_colony", "stick_nest"], "keep": [] }
+}
